@@ -45,7 +45,8 @@ class PileDriverPileupFormatVisitor : public PileupVisitor {
     public:        
         PileDriverPileupFormatVisitor(const RefVector& references,
                                       const string& fastaFilename,
-                                      ostream* out,
+                                      bool SetPos,                                      
+				      ostream* out,
                                       int num_samples, 
                                       map<string, size_t> &sample_map);
         
@@ -60,6 +61,7 @@ class PileDriverPileupFormatVisitor : public PileupVisitor {
     private:
         Fasta     m_fasta;
         bool      m_hasFasta;
+        bool      m_SetPos;
         ostream*  m_out;
         int       m_num_samples;
         map<string, size_t> m_sample_map;
@@ -83,6 +85,8 @@ struct PileDriverTool::PileDriverSettings {
 
     // pileup flags
     bool HasFastaFilename;
+    bool SetPos;
+
     bool IsOmittingSamHeader;
     bool IsPrintingPileupMapQualities;
     
@@ -106,6 +110,7 @@ struct PileDriverTool::PileDriverSettings {
         , HasRegion(false)
         , HasMinMAPQ(false)
         , HasFastaFilename(false)
+        , SetPos(false)	  
         , IsOmittingSamHeader(false)
         , IsPrintingPileupMapQualities(false)
         , OutputFilename(Options::StandardOut())
@@ -252,10 +257,11 @@ bool PileDriverTool::PileDriverToolPrivate::RunPileupConversion(BamMultiReader* 
 
     PileDriverPileupFormatVisitor* cv = 
         new PileDriverPileupFormatVisitor(m_references,
-                              m_settings->FastaFilename,
-                              &m_out,
-                              m_settings->InputFiles.size(),
-                              sample_map);
+					  m_settings->FastaFilename,
+					  m_settings->SetPos,					  
+					  &m_out,
+					  m_settings->InputFiles.size(),
+					  sample_map);
     // set up PileupEngine
     PileupEngine pileup;
     pileup.AddVisitor(cv);
@@ -325,6 +331,13 @@ PileDriverTool::PileDriverTool(void)
                             m_settings->HasFastaFilename, 
                             m_settings->FastaFilename, 
                             PileupOpts);
+
+    Options::AddOption("-pos", //"", 
+    		       "Produce positions of the nucleotides on the read", 
+    		       m_settings->SetPos,
+    		       PileupOpts);
+    
+
 }
 
 PileDriverTool::~PileDriverTool(void) {
@@ -364,12 +377,14 @@ int PileDriverTool::Run(int argc, char* argv[]) {
 PileDriverPileupFormatVisitor::PileDriverPileupFormatVisitor(
     const RefVector& references, 
     const string& fastaFilename,
+    bool SetPos,                                      
     ostream* out,
     int num_samples,
     map<string, size_t> &sample_map
 )
     : PileupVisitor()
     , m_hasFasta(false)
+    , m_SetPos(SetPos)
     , m_out(out)
     , m_num_samples(num_samples)
     , m_sample_map(sample_map)
@@ -395,6 +410,27 @@ PileDriverPileupFormatVisitor::~PileDriverPileupFormatVisitor(void) {
         m_fasta.Close();
         m_hasFasta = false;
     }
+}
+
+template <typename T>
+string stringify(const T i){
+    stringstream s;
+    s << i;
+    return s.str();
+}
+
+
+inline string vectorToString(const vector<int> & toPrint,const string separator=","){
+    if(toPrint.size() == 0){
+	return "";
+    }
+
+    string toReturn="";
+    for(int i=0;i<(int(toPrint.size())-1);i++){
+	toReturn+=(stringify(toPrint[i])+separator);
+    }
+    toReturn+=(stringify(toPrint[ toPrint.size() -1 ]));
+    return toReturn;
 }
 
 void PileDriverPileupFormatVisitor::Header() {
@@ -440,7 +476,18 @@ void PileDriverPileupFormatVisitor::Header() {
            << "totQ_R_G\t"
            << "totQ_R_T\t"
            << "all_R_ins";
-    
+
+    if(m_SetPos){
+	*m_out << "pos_A\t"
+	       << "pos_C\t"
+	       << "pos_G\t"
+	       << "pos_T\t"
+	       << "len_A\t"
+	       << "len_C\t"
+	       << "len_G\t"
+	       << "len_T\t";
+    }
+
     for (size_t i = 0; i < m_num_samples; ++i)
     {
         *m_out 
@@ -538,6 +585,11 @@ void PileDriverPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             
             if ((base == 'A') || (base == 'a'))
             {
+		sample_cov[file_id].posA.push_back(pa.PositionInAlignment);
+		sample_cov[file_id].lenA.push_back(ba.Length);
+		sample_cov[ovrl_idx].posA.push_back(pa.PositionInAlignment);
+		sample_cov[ovrl_idx].lenA.push_back(ba.Length);
+
                 if (! ba.IsReverseStrand()) 
                 {
                     sample_cov[file_id].a_fwd_cnt++;
@@ -555,6 +607,12 @@ void PileDriverPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             }
             else if ((base == 'C') || (base == 'c'))
             {
+		sample_cov[file_id].posC.push_back(pa.PositionInAlignment);
+		sample_cov[file_id].lenC.push_back(ba.Length);
+		sample_cov[ovrl_idx].posC.push_back(pa.PositionInAlignment);
+		sample_cov[ovrl_idx].lenC.push_back(ba.Length);
+
+		
                 if (! ba.IsReverseStrand()) 
                 {
                     sample_cov[file_id].c_fwd_cnt++;
@@ -573,6 +631,11 @@ void PileDriverPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             }
             else if ((base == 'G') || (base == 'g'))
             {
+		sample_cov[file_id].posG.push_back(pa.PositionInAlignment);
+		sample_cov[file_id].lenG.push_back(ba.Length);
+		sample_cov[ovrl_idx].posG.push_back(pa.PositionInAlignment);
+		sample_cov[ovrl_idx].lenG.push_back(ba.Length);
+
                 if (! ba.IsReverseStrand()) 
                 {
                     sample_cov[file_id].g_fwd_cnt++;
@@ -591,6 +654,12 @@ void PileDriverPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
             }
             else if ((base == 'T') || (base == 't'))
             {
+		sample_cov[file_id].posT.push_back(pa.PositionInAlignment);
+		sample_cov[file_id].lenT.push_back(ba.Length);
+		sample_cov[ovrl_idx].posT.push_back(pa.PositionInAlignment);
+		sample_cov[ovrl_idx].lenT.push_back(ba.Length);
+
+		
                 if (! ba.IsReverseStrand()) 
                 {
                     sample_cov[file_id].t_fwd_cnt++;
@@ -722,8 +791,21 @@ void PileDriverPileupFormatVisitor::Visit(const PileupPosition& pileupData ) {
            << sample_cov[all_idx].c_rev_totqual << TAB
            << sample_cov[all_idx].g_rev_totqual << TAB
            << sample_cov[all_idx].t_rev_totqual << TAB
-           << all_ins_rev_alleles.str();
-           
+           << all_ins_rev_alleles.str()<<TAB;
+
+    if(m_SetPos){           
+	*m_out   <<vectorToString(sample_cov[all_idx].posA)<< TAB
+		 <<vectorToString(sample_cov[all_idx].lenA)<< TAB
+	
+		 <<vectorToString(sample_cov[all_idx].posC)<< TAB
+		 <<vectorToString(sample_cov[all_idx].lenC)<< TAB
+	
+		 <<vectorToString(sample_cov[all_idx].posG)<< TAB
+		 <<vectorToString(sample_cov[all_idx].lenG)<< TAB
+	
+		 <<vectorToString(sample_cov[all_idx].posT)<< TAB
+		 <<vectorToString(sample_cov[all_idx].lenT);
+    }
 
     for (size_t i = 0; i < m_num_samples; ++i)
     {        

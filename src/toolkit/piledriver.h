@@ -11,6 +11,8 @@
 #define PILE_H
 
 #include <vector>
+#include <stdint.h>
+
 #include "bamtools_tool.h"
 
 
@@ -60,6 +62,18 @@ struct SampleCoverage {
     uint64_t g_rev_totqual;
     uint64_t t_rev_totqual;
     std::vector<std::string> ins_rev_alleles;
+
+
+    std::vector<int> posA;
+    std::vector<int> posC;
+    std::vector<int> posG;
+    std::vector<int> posT;
+
+    std::vector<int> lenA;
+    std::vector<int> lenC;
+    std::vector<int> lenG;
+    std::vector<int> lenT;
+
 };
   
 } // namespace BamTools

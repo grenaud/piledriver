@@ -95,9 +95,9 @@ class UTILS_EXPORT Options {
     public:
         // adds a simple option to the parser
         static void AddOption(const std::string& argument, 
-                       const std::string& optionDescription, 
-                       bool& foundArgument, 
-                       OptionGroup* group);
+			      const std::string& optionDescription, 
+			      bool& foundArgument, 
+			      OptionGroup* group);
                        
         // adds a value option to the parser
         template<typename T>
