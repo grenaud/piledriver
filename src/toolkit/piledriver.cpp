@@ -479,12 +479,15 @@ void PileDriverPileupFormatVisitor::Header() {
 
     if(m_SetPos){
 	*m_out << "\tpos_A\t"
-	       << "pos_C\t"
-	       << "pos_G\t"
-	       << "pos_T\t"
 	       << "len_A\t"
+
+	       << "pos_C\t"
 	       << "len_C\t"
+
+	       << "pos_G\t"
 	       << "len_G\t"
+
+	       << "pos_T\t"
 	       << "len_T\t";
     }
 
